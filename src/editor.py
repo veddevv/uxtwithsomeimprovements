@@ -16,11 +16,9 @@ def sanitize_code_content(content: str) -> str:
     Remove Markdown code fences like ```jsx, ```typescript, ```py etc.
     Keeps only the raw code inside.
     """
-    # Remove triple backtick fences with optional lang, e.g. ```jsx or ```
     pattern = r"^```[a-zA-Z]*\n|```$"
     sanitized = re.sub(pattern, "", content, flags=re.MULTILINE)
     return sanitized.strip()
-
 
 def apply_edit(filepath: str, new_content: str):
     if not os.path.exists(filepath):

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from outline import OutlineNode, save_outline_to_file, load_outline_from_file
 from ollama import OllamaClient
-from editor import apply_edit, run_shell_command
+from editor import apply_edit, run_shell_command, sanitize_code_content
 from utils import user_confirm, print_yellow, draw_box, color_diff
 
 LOGO = r"""
@@ -60,22 +60,26 @@ def main_loop():
     UXT_HOME.mkdir(parents=True, exist_ok=True)
     print(f"[uxt] Using task storage: {DATA_PATH}")
 
-    # Start spinner + scan
-    stop_spinner = threading.Event()
-    spinner_thread = threading.Thread(target=show_spinner, args=(stop_spinner,))
-    spinner_thread.start()
-
-    codebase = scan_codebase()
-
-    stop_spinner.set()
-    spinner_thread.join()
-
-    print(f"[uxt] Scanned {len(codebase)} files in codebase.")
-
     outline_root = load_outline_from_file(DATA_PATH)
     client = OllamaClient()
 
     while True:
+        # Scan the full codebase each prompt
+        stop_spinner = threading.Event()
+        spinner_thread = threading.Thread(target=show_spinner, args=(stop_spinner,))
+        spinner_thread.start()
+
+        codebase = scan_codebase()
+
+        stop_spinner.set()
+        spinner_thread.join()
+
+        print(f"[uxt] Scanned {len(codebase)} files:")
+        for f in list(codebase.keys())[:20]:  # Print up to 20 files
+            print(f"  - {f}")
+        if len(codebase) > 20:
+            print(f"  ... and {len(codebase)-20} more")
+
         print("\nCurrent Tasks:")
         print_outline(outline_root)
         user_input = input("\n[uxt] > ").strip()
@@ -133,6 +137,8 @@ Never delete or modify user code unless the user's prompt explicitly requests it
         elif edit_index is not None:
             filepath = lines[edit_index][5:].strip()
             new_content = "\n".join(lines[edit_index + 1:])
+
+            new_content = sanitize_code_content(new_content)
 
             if os.path.exists(filepath):
                 with open(filepath, "r", encoding="utf-8") as f:
