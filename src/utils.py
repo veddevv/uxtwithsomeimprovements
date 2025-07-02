@@ -8,11 +8,28 @@ def user_confirm(prompt: str) -> bool:
 def print_yellow(text: str):
     print(Fore.YELLOW + text + Style.RESET_ALL)
 
-def draw_box(title: str, content: str, color=Fore.WHITE):
-    border = f"{color}╭─ {title} {'─' * (50 - len(title))}╮"
-    lines = [f"{color}│ {line}" for line in content.strip().splitlines()]
-    bottom = f"{color}╰{'─' * 54}╯"
-    return "\n".join([border] + lines + [bottom])
+
+def draw_box(title: str, content: str, color=Fore.MAGENTA):
+    width = 60
+    top = f"{color}╭─ {title} {'─' * (width - len(title) - 3)}╮"
+    body = "\n".join([f"{color}│ {Style.RESET_ALL}{line}" for line in content.strip().splitlines()])
+    bottom = f"{color}╰{'─' * (width)}╯{Style.RESET_ALL}"
+    return f"{top}\n{body}\n{bottom}"
+
+def color_diff(diff_text: str) -> str:
+    lines = diff_text.splitlines()
+    colored = []
+    for line in lines:
+        if line.startswith("+") and not line.startswith("+++"):
+            colored.append(Fore.GREEN + line + Style.RESET_ALL)
+        elif line.startswith("-") and not line.startswith("---"):
+            colored.append(Fore.RED + line + Style.RESET_ALL)
+        elif line.startswith("@@"):
+            colored.append(Fore.YELLOW + line + Style.RESET_ALL)
+        else:
+            colored.append(Style.DIM + line + Style.RESET_ALL)
+    return "\n".join(colored)
+
 
 def print_diff(from_text, to_text, filepath):
     diff = difflib.unified_diff(

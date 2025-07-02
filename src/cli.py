@@ -1,9 +1,10 @@
-import sys
 import os
+import difflib
+
 from outline import OutlineNode, save_outline_to_file, load_outline_from_file
 from ollama import OllamaClient
 from editor import apply_edit, run_shell_command
-from utils import user_confirm, print_yellow
+from utils import user_confirm, print_yellow, draw_box, color_diff
 
 LOGO = r"""
 ██╗      ██╗   ██╗██╗  ██╗████████╗
@@ -14,7 +15,10 @@ LOGO = r"""
 ╚═╝       ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 """
 
-DATA_PATH = os.path.join("data", "tasks.json")
+UXT_HOME = os.path.join(os.environ["HOME"], ".uxt")
+DATA_PATH = os.path.join(UXT_HOME, "tasks.json")
+
+print(f"[uxt] Using task storage: {DATA_PATH}")
 
 def print_outline(node: OutlineNode, prefix=""):
     print(prefix + "- " + node.title)
@@ -57,7 +61,7 @@ The user said:
 Respond with one of the following formats:
 
 If this requires code changes:
-Edit: ./relative/path/to/file.py
+Edit: ./relative/path/to/file.ext
 <new full file content here>
 
 If this requires running shell commands:
@@ -74,39 +78,55 @@ Only respond with a single Edit, Run, or Outline section.
 Never delete or modify user code unless the user's prompt explicitly requests it or clearly implies it."""
 
         response = client.chat(prompt)
-        print("\n[uxt - Ollama response]:")
-        print(response)
+        print(draw_box("uxt - Ollama response", response))
 
-        lowered = response.lower()
+        lines = response.strip().splitlines()
+        edit_index = next((i for i, l in enumerate(lines) if l.lower().startswith("edit:")), None)
+        run_index = next((i for i, l in enumerate(lines) if l.lower().startswith("run:")), None)
+        outline_index = next((i for i, l in enumerate(lines) if l.lower().startswith("outline:")), None)
 
-        # Handle Outline
-        if response.startswith("Outline:"):
-            tasks = [line.strip("- ").strip() for line in response.splitlines() if line.startswith("- ")]
+        if outline_index is not None:
+            tasks = [line.strip("- ").strip() for line in lines if line.startswith("- ")]
             for task in tasks:
                 outline_root.add_child(OutlineNode(task))
             save_outline_to_file(outline_root, DATA_PATH)
             print("[uxt] Added outlined tasks.")
             continue
 
-        # Handle Edit
-        elif lowered.startswith("edit:"):
-            lines = response.splitlines()
-            filepath = lines[0][5:].strip()
-            content = "\n".join(lines[1:])
+        elif edit_index is not None:
+            filepath = lines[edit_index][5:].strip()
+            new_content = "\n".join(lines[edit_index + 1:])
+
+            # Show colorized diff
+            if os.path.exists(filepath):
+                with open(filepath, "r", encoding="utf-8") as f:
+                    old_content = f.read()
+            else:
+                old_content = ""
+
+            diff_text = "\n".join(difflib.unified_diff(
+                old_content.splitlines(),
+                new_content.splitlines(),
+                fromfile=filepath,
+                tofile=f"{filepath} (edited)",
+                lineterm=""
+            ))
+
+            print(draw_box(f"Preview Edit: {filepath}", color_diff(diff_text)))
+
             if user_confirm(f"Apply edit to {filepath}?"):
-                success = apply_edit(filepath, content)
-                if success:
-                    print("[uxt] Edit applied.")
+                apply_edit(filepath, new_content)
+                print("[uxt] Edit applied.")
+            else:
+                print("[uxt] Edit skipped.")
             continue
 
-        # Handle Run
-        elif lowered.startswith("run:"):
-            command = response[4:].strip()
-            if user_confirm(f"Run command: {command}?"):
-                success = run_shell_command(command)
-                if success:
-                    print("[uxt] Command executed.")
+        elif run_index is not None:
+            command = lines[run_index][4:].strip()
+            print(draw_box("Shell Command", command))
+            if user_confirm(f"Run: {command}?"):
+                run_shell_command(command)
             continue
 
         else:
-            print("[uxt] Response not actionable or not formatted correctly.")
+            print("[uxt] No actionable section found (Edit/Run/Outline).")
