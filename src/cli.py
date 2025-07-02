@@ -71,8 +71,7 @@ Outline:
 Do not explain anything unless asked.
 Only respond with a single Edit, Run, or Outline section.
 
-Never delete or modify user code unless the user's prompt explicitly requests it or clearly implies it.
-"""
+Never delete or modify user code unless the user's prompt explicitly requests it or clearly implies it."""
 
         response = client.chat(prompt)
         print("\n[uxt - Ollama response]:")
