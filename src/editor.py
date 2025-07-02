@@ -1,7 +1,7 @@
 import os
 import shutil
 import subprocess
-import tempfile
+import re
 
 def backup_file(filepath: str):
     backup_path = f"{filepath}.bak"
@@ -10,6 +10,17 @@ def backup_file(filepath: str):
         print(f"[Backup] Created backup: {backup_path}")
     except Exception as e:
         print(f"[ERROR] Could not create backup for {filepath}: {e}")
+
+def sanitize_code_content(content: str) -> str:
+    """
+    Remove Markdown code fences like ```jsx, ```typescript, ```py etc.
+    Keeps only the raw code inside.
+    """
+    # Remove triple backtick fences with optional lang, e.g. ```jsx or ```
+    pattern = r"^```[a-zA-Z]*\n|```$"
+    sanitized = re.sub(pattern, "", content, flags=re.MULTILINE)
+    return sanitized.strip()
+
 
 def apply_edit(filepath: str, new_content: str):
     if not os.path.exists(filepath):

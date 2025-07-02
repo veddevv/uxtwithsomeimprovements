@@ -1,5 +1,10 @@
+import sys
 import os
 import difflib
+import threading
+import time
+import itertools
+from pathlib import Path
 
 from outline import OutlineNode, save_outline_to_file, load_outline_from_file
 from ollama import OllamaClient
@@ -15,10 +20,8 @@ LOGO = r"""
 ╚═╝       ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 """
 
-UXT_HOME = os.path.join(os.environ["HOME"], ".uxt")
-DATA_PATH = os.path.join(UXT_HOME, "tasks.json")
-
-print(f"[uxt] Using task storage: {DATA_PATH}")
+UXT_HOME = Path.home() / ".uxt"
+DATA_PATH = UXT_HOME / "tasks.json"
 
 def print_outline(node: OutlineNode, prefix=""):
     print(prefix + "- " + node.title)
@@ -32,8 +35,42 @@ def gather_outline_text(node: OutlineNode, indent=0):
         text += gather_outline_text(child, indent + 1)
     return text
 
+def scan_codebase(root_dir="."):
+    file_map = {}
+    for path in Path(root_dir).rglob("*"):
+        if path.is_file():
+            try:
+                content = path.read_text(encoding="utf-8")
+                file_map[str(path)] = content
+            except Exception:
+                continue
+    return file_map
+
+def show_spinner(stop_event):
+    spinner = itertools.cycle(["⠋", "⠙", "⠸", "⠴", "⠦", "⠇"])
+    while not stop_event.is_set():
+        sys.stdout.write(f"\r[uxt] Scanning codebase... {next(spinner)}")
+        sys.stdout.flush()
+        time.sleep(0.1)
+    sys.stdout.write("\r[uxt] Codebase scan complete.         \n")
+
 def main_loop():
     print_yellow(LOGO)
+
+    UXT_HOME.mkdir(parents=True, exist_ok=True)
+    print(f"[uxt] Using task storage: {DATA_PATH}")
+
+    # Start spinner + scan
+    stop_spinner = threading.Event()
+    spinner_thread = threading.Thread(target=show_spinner, args=(stop_spinner,))
+    spinner_thread.start()
+
+    codebase = scan_codebase()
+
+    stop_spinner.set()
+    spinner_thread.join()
+
+    print(f"[uxt] Scanned {len(codebase)} files in codebase.")
 
     outline_root = load_outline_from_file(DATA_PATH)
     client = OllamaClient()
@@ -97,7 +134,6 @@ Never delete or modify user code unless the user's prompt explicitly requests it
             filepath = lines[edit_index][5:].strip()
             new_content = "\n".join(lines[edit_index + 1:])
 
-            # Show colorized diff
             if os.path.exists(filepath):
                 with open(filepath, "r", encoding="utf-8") as f:
                     old_content = f.read()
@@ -124,7 +160,7 @@ Never delete or modify user code unless the user's prompt explicitly requests it
         elif run_index is not None:
             command = lines[run_index][4:].strip()
             print(draw_box("Shell Command", command))
-            if user_confirm(f"Run: {command}?"):
+            if user_confirm(f"Run command: {command}?"):
                 run_shell_command(command)
             continue
 
