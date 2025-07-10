@@ -13,7 +13,7 @@ from outline import OutlineNode, save_outline_to_file, load_outline_from_file
 from ollama import OllamaClient
 from editor import apply_edit, run_shell_command, sanitize_code_content
 from utils import user_confirm, print_yellow, draw_box, color_diff
-from config import Config
+from config import UXTConfig
 
 LOGO = r"""
 ██╗      ██╗   ██╗██╗  ██╗████████╗
@@ -28,7 +28,7 @@ UXT_HOME = Path.home() / ".uxt"
 DATA_PATH = UXT_HOME / "tasks.json"
 
 # Global config instance
-config = Config()
+config = UXTConfig()
 
 class CodebaseCache:
     """Caches file contents and modification times to avoid unnecessary re-reads."""
