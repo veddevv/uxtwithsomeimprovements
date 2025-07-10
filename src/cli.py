@@ -6,7 +6,7 @@ import time
 import itertools
 import logging
 from pathlib import Path
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, Tuple
 from datetime import datetime
 
 from outline import OutlineNode, save_outline_to_file, load_outline_from_file
@@ -144,7 +144,7 @@ class ResponseHandler:
     """Handles parsing and execution of AI responses."""
     
     @staticmethod
-    def parse_response(response: str) -> tuple[Optional[str], Optional[dict]]:
+    def parse_response(response: str) -> Tuple[Optional[str], Optional[dict]]:
         """Parse AI response and return action type and details."""
         lines = response.strip().splitlines()
         
@@ -337,7 +337,14 @@ def main_loop():
     print_yellow(LOGO)
 
     # Setup logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(UXT_HOME / "uxt.log"),
+            logging.StreamHandler()
+        ]
+    )
     
     UXT_HOME.mkdir(parents=True, exist_ok=True)
     print(f"[uxt] Using task storage: {DATA_PATH}")
