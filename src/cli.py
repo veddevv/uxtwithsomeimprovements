@@ -18,12 +18,49 @@ from utils import user_confirm, print_yellow, draw_box, color_diff
 try:
     from .config import UXTConfig
 except ImportError:
-    # Fallback for direct execution
+    # Fallback for direct execution - be more specific about the import
     import sys
+    import importlib.util
     from pathlib import Path
+    
     current_dir = Path(__file__).parent
-    sys.path.insert(0, str(current_dir))
-    from config import UXTConfig
+    config_path = current_dir / "config.py"
+    
+    if config_path.exists():
+        # Load the local config.py file directly
+        spec = importlib.util.spec_from_file_location("config", config_path)
+        config_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(config_module)
+        UXTConfig = config_module.UXTConfig
+    else:
+        # Create a minimal config if file doesn't exist
+        print("[WARNING] config.py not found, creating minimal configuration...")
+        
+        class UXTConfig:
+            def __init__(self):
+                self._config = {
+                    'model': None,
+                    'ollama_host': 'http://localhost',
+                    'ollama_port': 11434,
+                    'max_file_size': 1024 * 1024,
+                    'max_display_files': 20,
+                    'enable_caching': True,
+                    'auto_backup': True,
+                    'code_extensions': ['.py', '.js', '.ts', '.html', '.css', '.md'],
+                    'ignore_dirs': ['node_modules', '.git', '__pycache__']
+                }
+            
+            def get(self, key, default=None):
+                return self._config.get(key, default)
+            
+            def set(self, key, value):
+                self._config[key] = value
+            
+            def save(self):
+                return True
+            
+            def reset(self):
+                return True
 
 LOGO = r"""
 ██╗      ██╗   ██╗██╗  ██╗████████╗
