@@ -13,7 +13,17 @@ from outline import OutlineNode, save_outline_to_file, load_outline_from_file
 from ollama import OllamaClient
 from editor import apply_edit, run_shell_command, sanitize_code_content
 from utils import user_confirm, print_yellow, draw_box, color_diff
-from config import UXTConfig
+
+# Import config with explicit path handling to avoid conflicts
+try:
+    from .config import UXTConfig
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    from pathlib import Path
+    current_dir = Path(__file__).parent
+    sys.path.insert(0, str(current_dir))
+    from config import UXTConfig
 
 LOGO = r"""
 ██╗      ██╗   ██╗██╗  ██╗████████╗
