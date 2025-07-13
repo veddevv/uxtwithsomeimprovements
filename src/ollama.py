@@ -137,3 +137,44 @@ class OllamaClient:
             return f"[ERROR] Ollama HTTP error ({e.response.status_code}): {e}"
         except Exception as e:
             return f"[ERROR] Ollama request failed: {e}"
+
+    def main_loop(self):
+        """Main loop to interact with the user and Ollama."""
+        print(f"{colorama.Fore.GREEN}Welcome to the Ollama Chat Assistant!{colorama.Style.RESET_ALL}")
+        
+        # Example: Initialize codebase as a dictionary of filenames (replace with actual logic as needed)
+        codebase = {}
+        for root, dirs, files in os.walk("."):
+            for file in files:
+                filepath = os.path.relpath(os.path.join(root, file))
+                codebase[filepath] = None  # or file content if needed
+
+        while True:
+            user_input = input("\nYou: ").strip()
+            
+            if user_input.lower() in ["exit", "quit", "q"]:
+                print("Exiting. Goodbye!")
+                break
+            
+            # Prepare the prompt for Ollama
+            prompt = f"""You are a helpful coding assistant. The user is working on a codebase and needs your help.
+
+Current codebase files:
+{chr(10).join(f"- {fp}" for fp in list(codebase.keys())[:10])}
+
+User request: {user_input}
+
+If you need to edit a file, respond with:
+EDIT: filename.ext
+<complete file content>
+
+If you need to run a command, respond with:
+RUN: command here
+
+Otherwise, just provide a helpful response."""
+            
+            # Get response from Ollama
+            response = self.chat(prompt)
+            
+            # Print and handle the response
+            print(f"Ollama: {response}")
